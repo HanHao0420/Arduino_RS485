@@ -26,7 +26,7 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-int RPM = 0;
+unsigned int RPM = 0;
 int M = 0;
 uint8_t result;
 int start = 0;
@@ -36,6 +36,7 @@ uint16_t data[6];
 #define MAX485_DE  2
 #define MAX485_RE  3
 #define buzzer 8
+#define MOTOR_POLES 6
 
 // instantiate ModbusMaster object
 ModbusMaster node;
@@ -96,11 +97,14 @@ void loop()
       node.writeSingleRegister(0x006b, 730); // 最大負載電流配置，無特別要求則與額定電流相同
       tone(buzzer, 659,1000);
       delay(1000);
-      node.writeSingleRegister(0x0073, 3); // 配置極個數
+      node.writeSingleRegister(0x0073, MOTOR_POLES); // 配置極個數
       tone(buzzer, 784, 1000);
       delay(1000);
       node.writeSingleRegister(0x0074, 1); // 配置減速比
-      tone(buzzer, 784, 1000);
+      tone(buzzer, 932, 1000);
+      delay(1000);
+      node.writeSingleRegister(0x0070, 0); // 配置速度閉環控制算法
+      tone(buzzer, 1046, 1000);
       delay(1000);
     }
     else if(Input.equals("Learning")){
@@ -117,12 +121,12 @@ void loop()
       }
     }
     else if(Input.equals("Control")){
-      int RevolutionPerMinute = 32000;
-      node.writeSingleRegister(0x0043, ((RevolutionPerMinute*3)/20)); // RPM*極個數/20 = 電機換相頻率
+      int RevolutionPerMinute = 10000;
+      node.writeSingleRegister(0x0043, (RevolutionPerMinute/60 * MOTOR_POLES *2 *10)); // RPM/60*極個數*2 *10(0x0043倍率) = 電機換相頻率
     }
     else if(Input.equals("Stop")){
       int RevolutionPerMinute = 0;
-      node.writeSingleRegister(0x0043, ((RevolutionPerMinute*3)/20));
+      node.writeSingleRegister(0x0043, 0);
     }
   }
 
@@ -132,17 +136,22 @@ void loop()
     if (result == node.ku8MBSuccess){
       RPM = node.getResponseBuffer(0x00);
       M = node.getResponseBuffer(0x01);
+
+      Serial.print("RPM:");
+      Serial.print(RPM/20*3);
+      Serial.print("M:");
+      Serial.println(M);
       if(M == 1){
         lcd.setCursor(5,1);
         lcd.print((RPM*10));
-        Serial.print("RevolutionPerMinute:  "); 
-        Serial.println((RPM*10));
+        //Serial.print("RevoStoplutionPerMinute:  "); 
+        //Serial.println((RPM*10));
       }
       else if(M ==0){
         lcd.setCursor(5,1);
         lcd.print(RPM);
-        Serial.print("RevolutionPerMinute:  "); 
-        Serial.println(RPM);
+        //Serial.print("RevolutionPerMinute:  "); 
+        //Serial.println(RPM);
       }
     }
     delay(1000);
